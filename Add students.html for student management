@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نور القرآن</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f7f2;
+  margin: 0;
+  color: #173d32;
+}
+header {
+  background: #176b50;
+  color: white;
+  padding: 24px 12px;
+  text-align: center;
+}
+main {
+  max-width: 600px;
+  margin: auto;
+  padding: 15px;
+}
+.card {
+  background: white;
+  padding: 18px;
+  margin-bottom: 15px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px #0001;
+}
+input, textarea, select, button {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  margin: 7px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+button {
+  background: #176b50;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+.delete { background: #b83232; }
+.print { background: #b18a38; }
+.student {
+  border: 1px solid #ddd;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 10px;
+}
+h2 { margin-top: 0; }
+@media print {
+  header, .form, .actions { display: none; }
+  body { background: white; }
+  .card { box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌙 نور القرآن الكريم</h1>
+  <p>إدارة حلقات التحفيظ ومتابعة الطلاب</p>
+</header>
+
+<main>
+  <section class="card form">
+    <h2>إضافة طالب جديد</h2>
+
+    <input id="teacher" placeholder="اسم المعلم">
+    <input id="name" placeholder="اسم الطالب">
+
+    <label>السورة:</label>
+    <input id="surah" placeholder="اسم السورة">
+
+    <label>الآيات المحفوظة:</label>
+    <input id="verses" placeholder="مثال: من 1 إلى 10">
+
+    <label>المراجعة:</label>
+    <select id="review">
+      <option>ممتاز</option>
+      <option>جيد جداً</option>
+      <option>جيد</option>
+      <option>يحتاج إلى مراجعة</option>
+    </select>
+
+    <textarea id="notes" placeholder="ملاحظات المعلم"></textarea>
+
+    <button onclick="addStudent()">حفظ بيانات الطالب</button>
+  </section>
+
+  <section class="card">
+    <h2>📚 سجل الطلاب</h2>
+    <input id="search" placeholder="ابحث عن طالب..."
+      oninput="render()">
+    <div id="students"></div>
+  </section>
+
+  <section class="card actions">
+    <button class="print" onclick="window.print()">
+      🖨️ طباعة السجلات أو حفظها PDF
+    </button>
+    <button onclick="exportData()">حفظ نسخة احتياطية</button>
+    <input type="file" id="importFile" accept=".json"
+      onchange="importData(event)">
+  </section>
+</main>
+
+<script>
+let list = JSON.parse(localStorage.getItem("noorStudents") || "[]");
+
+function save() {
+  localStorage.setItem("noorStudents", JSON.stringify(list));
+}
+
+function addStudent() {
+  const name = document.getElementById("name").value.trim();
+
+  if (!name) {
+    alert("اكتب اسم الطالب أولاً");
+    return;
+  }
+
+  list.push({
+    id: Date.now(),
+    teacher: document.getElementById("teacher").value,
+    name: name,
+    surah: document.getElementById("surah").value,
+    verses: document.getElementById("verses").value,
+    review: document.getElementById("review").value,
+    notes: document.getElementById("notes").value
+  });
+
+  save();
+  render();
+
+  ["name", "surah", "verses", "notes"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+
+  alert("تم حفظ بيانات الطالب بنجاح");
+}
+
+function render() {
+  const box = document.getElementById("students");
+  const query = document.getElementById("search").value.trim();
+
+  box.innerHTML = "";
+
+  list.filter(s => s.name.includes(query)).forEach(s => {
+    const div = document.createElement("div");
+    div.className = "student";
+
+    const title = document.createElement("h3");
+    title.textContent = "👤 " + s.name;
+    div.appendChild(title);
+
+    [
+      "المعلم: " + (s.teacher || "—"),
+      "السورة: " + (s.surah || "—"),
+      "الآيات: " + (s.verses || "—"),
+      "المراجعة: " + s.review,
+      "ملاحظات: " + (s.notes || "—")
+    ].forEach(t => {
+      const p = document.createElement("p");
+      p.textContent = t;
+      div.appendChild(p);
+    });
+
+    const del = document.createElement("button");
+    del.className = "delete";
+    del.textContent = "حذف الطالب";
+    del.onclick = () => {
+      if (confirm("هل تريد حذف بيانات هذا الطالب؟")) {
+        list = list.filter(x => x.id !== s.id);
+        save();
+        render();
+      }
+    };
+
+    div.appendChild(del);
+    box.appendChild(div);
+  });
+}
+
+function exportData() {
+  const blob = new Blob(
+    [JSON.stringify(list, null, 2)],
+    { type: "application/json;charset=utf-8" }
+  );
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "noor-alquran-backup.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data)) throw new Error();
+
+      list = data;
+      save();
+      render();
+      alert("تم استيراد البيانات");
+    } catch {
+      alert("الملف غير صالح");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+render();
+</script>
+
+</body>
+</html>
